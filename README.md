@@ -141,6 +141,29 @@ Error handling
 - 404 Not Found if resource does not exist  
 - 400 Bad Request for invalid input  
 
+Rate Limiting
+Test Rate-Limited Endpoint
+
+Method: GET
+
+URL: /test-rate/
+
+Headers: None
+
+Request Body: None
+
+Sample Success Response:
+{
+  "message": "This endpoint is rate-limited"
+}
+
+Sample Rate Limit Exceeded Response:
+{
+  "detail": "Rate limit exceeded. Try again later."
+}
+
+Status Code: 429 Too Many Requests
+
 License  
 This project is licensed under the MIT License.
 
