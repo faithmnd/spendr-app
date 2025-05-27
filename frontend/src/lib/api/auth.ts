@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
 import { authStore } from '$lib/stores/auth';
 
-const API_BASE_URL = 'http://localhost:5173/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 /**
  * Registers a new user.
  * @param {object} userData 
