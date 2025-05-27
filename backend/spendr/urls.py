@@ -10,3 +10,4 @@ router.register('transactions', TransactionViewSet, basename='transaction')
 urlpatterns = [
     path('api/', include(router.urls)),
 ]
+
