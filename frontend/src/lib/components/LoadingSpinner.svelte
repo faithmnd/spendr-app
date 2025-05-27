@@ -14,12 +14,12 @@
         align-items: center;
         justify-content: center;
         padding: 20px;
-        color: #555;
+        color: #C71585;
     }
 
     .spinner {
         border: 4px solid rgba(0, 0, 0, 0.1);
-        border-left-color: #007bff;
+        border-left-color: #C71585;
         border-radius: 50%;
         width: 40px;
         height: 40px;
