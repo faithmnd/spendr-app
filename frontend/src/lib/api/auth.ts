@@ -1,50 +1,68 @@
 import { goto } from '$app/navigation';
 import { authStore } from '$lib/stores/auth';
+const API_BASE_URL = import.meta.env.VITE_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
 
-const API_BASE_URL = 'http://localhost:8000/api';
 /**
  * Registers a new user.
- * @param {object} userData 
- * @param {string} userData.username    
- * @param {string} userData.email 
+ * @param {object} userData
+ * @param {string} userData.username
+ * @param {string} userData.email
  * @param {string} userData.password 
- * @param {string} userData.password2 
- * @returns {Promise<object>} 
+ * @param {string} userData.passwordConfirm 
+ * @returns {Promise<object>}
  */
-export async function registerUser(userData: { username: string; email: string; password: string; password2: string }) {
+export async function registerUser(userData: { username: string; email: string; password: string; passwordConfirm: string }) {
     try {
-        const response = await fetch(`${API_BASE_URL}/register/`, {
+        const response = await fetch(`${API_BASE_URL}/auth/registration/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(userData),
+            body: JSON.stringify({
+                username: userData.username,
+                email: userData.email,
+                password1: userData.password,
+                password2: userData.passwordConfirm,
+            }),
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.detail || JSON.stringify(data)); 
+            let errorMessage = "Registration failed.";
+            if (data && data.detail) {
+                errorMessage = data.detail;
+            } else if (typeof data === 'object') {
+                errorMessage = Object.entries(data)
+                    .map(([key, value]) => {
+                        const messages = Array.isArray(value) ? value : [value];
+                        if (key === 'password' || key === 'password1' || key === 'password2') {
+                            return messages.join(', ');
+                        }
+                        return `${key}: ${messages.join(', ')}`;
+                    })
+                    .join('; ');
+            }
+            throw new Error(errorMessage); 
         }
 
         return data;
-
     } catch (error: unknown) {
-        console.error('Registration failed:', error);
+        console.error('Registration failed in auth.ts:', error);
         throw error; 
     }
 }
 
 /**
  * Logs in a user.
- * @param {object} credentials 
- * @param {string} credentials.username 
- * @param {string} credentials.password 
- * @returns {Promise<object>} 
+ * @param {object} credentials
+ * @param {string} credentials.username
+ * @param {string} credentials.password
+ * @returns {Promise<object>}
  */
 export async function loginUser(credentials: { username: string; password: string }) {
     try {
-        const response = await fetch(`${API_BASE_URL}/login/`, {
+        const response = await fetch(`${API_BASE_URL}/auth/login/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -55,36 +73,66 @@ export async function loginUser(credentials: { username: string; password: strin
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.detail || 'Login failed');
+            let errorMessage = "Login failed.";
+            if (data && data.non_field_errors && data.non_field_errors.length > 0) {
+                errorMessage = data.non_field_errors[0];
+            } else if (data && data.detail) {
+                errorMessage = data.detail;
+            } else if (typeof data === 'object') {
+                errorMessage = Object.entries(data)
+                    .map(([key, value]) => {
+                        return `${key}: ${(Array.isArray(value) ? value : [value]).join(', ')}`;
+                    })
+                    .join('; ');
+            }
+            throw new Error(errorMessage);
         }
 
         const { access, refresh } = data;
 
-        localStorage.setItem('accessToken', access);
-        localStorage.setItem('refreshToken', refresh);
-
-        authStore.login(access); 
-
-        await goto('/dashboard'); 
-
-        return data;
-
+        if (access && refresh) {
+            localStorage.setItem('accessToken', access);
+            localStorage.setItem('refreshToken', refresh);
+            authStore.login(access);
+            await goto('/dashboard');
+            return data;
+        } else {
+            throw new Error('Authentication tokens not received.');
+        }
     } catch (error: unknown) {
         console.error('Login failed:', error);
         throw error;
     }
 }
 
-export function logoutUser() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    authStore.logout();
-    goto('/login'); 
+/**
+ * Logs out the user.
+ */
+export async function logoutUser() {
+    try {
+        const accessToken = localStorage.getItem('accessToken');
+        if (accessToken) {
+            await fetch(`${API_BASE_URL}/auth/logout/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`,
+                },
+            });
+        }
+    } catch (error) {
+        console.warn('Backend logout failed (token might be invalid or network issue):', error);
+    } finally {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        authStore.logout();
+        goto('/login');
+    }
 }
 
 /**
  * Fetches the current authenticated user's details.
- * @returns {Promise<object | null>} 
+ * @returns {Promise<object | null>}
  */
 export async function getCurrentUser() {
     const accessToken = localStorage.getItem('accessToken');
@@ -98,7 +146,7 @@ export async function getCurrentUser() {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`, 
+                'Authorization': `Bearer ${accessToken}`,
             },
         });
 
@@ -118,12 +166,11 @@ export async function getCurrentUser() {
         }
 
         const data = await response.json();
-        authStore.setUser(data); 
+        authStore.setUser(data);
         return data;
-
     } catch (error) {
         console.error('Error fetching current user:', error);
-        logoutUser(); 
+        logoutUser();
         return null;
     }
 }
@@ -139,7 +186,7 @@ async function refreshAccessToken(): Promise<boolean> {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/token/refresh/`, { 
+        const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -153,12 +200,27 @@ async function refreshAccessToken(): Promise<boolean> {
 
         const data = await response.json();
         const newAccessToken = data.access;
-        localStorage.setItem('accessToken', newAccessToken);
-        authStore.login(newAccessToken); 
-        return true;
+        if (newAccessToken) {
+            localStorage.setItem('accessToken', newAccessToken);
+            authStore.login(newAccessToken);
+            return true;
+        } else {
+            throw new Error('New access token not received during refresh.');
+        }
     } catch (error) {
         console.error('Error refreshing token:', error);
         logoutUser();
         return false;
     }
+}
+
+export function getAuthHeaders(): HeadersInit {
+    let headers: HeadersInit = {
+        'Content-Type': 'application/json',
+    };
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
 }

@@ -1,8 +1,9 @@
 <script lang="ts">
     import { loginUser } from '$lib/api/auth';
-    // No need for goto here, as loginUser handles redirection
+    import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+    import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 
-    let username = ''; // Or email, depending on your backend
+    let username = '';
     let password = '';
     let error: string | null = null;
     let isLoading = false;
@@ -13,62 +14,266 @@
 
         try {
             await loginUser({ username, password });
-            // Redirection is handled inside loginUser, so nothing more needed here
-        } catch (err: any) {
+            console.log('Login successful!');
+            goto('/dashboard'); 
+        } catch (err: unknown) {
             console.error('Login error:', err);
-            error = err.message || 'Login failed. Please check your credentials.';
+            let errorMessageForDisplay: string;
+
+            if (err instanceof Error) {
+                errorMessageForDisplay = err.message;
+            } else if (typeof err === 'string') {
+                errorMessageForDisplay = err;
+            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof err.message === 'string') {
+                errorMessageForDisplay = err.message; 
+            } else if (typeof err === 'object' && err !== null) {
+                try {
+                    const parsedError = JSON.parse(JSON.stringify(err)); 
+                    if (typeof parsedError === 'object' && parsedError !== null) {
+                        const errorEntries = Object.entries(parsedError);
+                        if (errorEntries.length > 0) {
+                            errorMessageForDisplay = errorEntries
+                                .map(([key, value]) => {
+                                    return `${key}: ${(Array.isArray(value) ? value : [value]).join(', ')}`;
+                                })
+                                .join('; ');
+                        } else {
+                            errorMessageForDisplay = 'An unexpected error occurred during login.';
+                        }
+                    } else {
+                        errorMessageForDisplay = 'An unexpected error occurred during login.';
+                    }
+                } catch (parseError) {
+                    console.warn('Could not parse error message as JSON:', parseError);
+                    errorMessageForDisplay = 'An unexpected error occurred during login.';
+                }
+            } else {
+                errorMessageForDisplay = 'Login failed. Please check your credentials.';
+            }
+            error = errorMessageForDisplay;
         } finally {
             isLoading = false;
         }
     }
 </script>
 
-<div class="login-container">
-    <h1>Login</h1>
+<div class="auth-background-wrapper">
+    <div class="cash-bubble bubble-1"></div>
+    <div class="cash-bubble bubble-2"></div>
+    <div class="cash-bubble bubble-3"></div>
+    <div class="cash-bubble bubble-4"></div>
+    <div class="cash-bubble bubble-5"></div>
+    <div class="cash-bubble bubble-6"></div>
+    <div class="cash-bubble bubble-7"></div>
+    <div class="cash-bubble bubble-8"></div>
+    <div class="cash-bubble bubble-9"></div>
+    <div class="cash-bubble bubble-10"></div>
 
-    <form on:submit|preventDefault={handleSubmit}>
-        <div class="form-group">
-            <label for="username">Username or Email:</label>
-            <input type="text" id="username" bind:value={username} required />
-        </div>
+    <div class="login-container">
+        <img src="/assets/spendr-logo.png" alt="Spendr App Logo" class="spendr-logo"/>
+        <h1>LOGIN</h1>
 
-        <div class="form-group">
-            <label for="password">Password:</label>
-            <input type="password" id="password" bind:value={password} required />
-        </div>
+        <form on:submit|preventDefault={handleSubmit}>
+            <div class="form-group">
+                <label for="username">Username or Email:</label>
+                <input type="text" id="username" bind:value={username} required />
+            </div>
 
-        {#if error}
-            <p class="error-message">{error}</p>
-        {/if}
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" bind:value={password} required />
+            </div>
 
-        <button type="submit" disabled={isLoading}>
             {#if isLoading}
-                Logging in...
-            {:else}
-                Login
+                <LoadingSpinner message="Logging in..." />
+            {:else if error}
+                <ErrorMessage message={error} />
             {/if}
-        </button>
-    </form>
 
-    <p>Don't have an account? <a href="/register">Register here</a></p>
+            <button type="submit" disabled={isLoading}>
+                Login
+            </button>
+        </form>
+
+        <p>Don't have an account? <a href="/register">Register here</a></p>
+    </div>
 </div>
 
 <style>
-    /* Reuse styles from register/+page.svelte or move them to a global CSS file */
+	.auth-background-wrapper {
+		position: relative;
+		min-height: 100vh;
+		background-color: var(--very-light-pink);
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		padding: 20px;
+		box-sizing: border-box;
+	}
+
+	.cash-bubble {
+		position: absolute;
+		background-color: var(--light-pink);
+		border-radius: 8px;
+		opacity: 0;
+		transform: scale(0.1) rotate(0deg);
+		animation: cashPop 10s ease-out infinite;
+		pointer-events: none;
+		z-index: 0;
+		box-shadow: 0 0 10px rgba(var(--light-pink), 0.5);
+
+		position: absolute;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.cash-bubble::before {
+		content: '';
+		width: 40%;
+		height: 60%;
+		background-color: var(--dark-pink);
+		border-radius: 50%;
+		opacity: 0.8;
+		box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+	}
+
+	@keyframes cashPop {
+		0% {
+			opacity: 0;
+			transform: scale(0.1) rotate(0deg);
+		}
+		10% {
+			opacity: 0.7;
+			transform: scale(0.9) rotate(calc(var(--random-rotation) * 1deg));
+		}
+		20% {
+			opacity: 0.5;
+			transform: scale(0.7) rotate(calc(var(--random-rotation) * -1deg));
+		}
+		100% {
+			opacity: 0;
+			transform: scale(0.1) rotate(0deg);
+		}
+	}
+
+	.bubble-1 {
+		top: 10%;
+		left: 5%;
+		width: 120px;
+		height: 60px;
+		animation-delay: 0s;
+		background-color: var(--primary-pink);
+		--random-rotation: 15;
+	}
+	.bubble-2 {
+		top: 50%;
+		left: 85%;
+		width: 100px;
+		height: 50px;
+		animation-delay: 2s;
+		background-color: var(--dark-pink);
+		--random-rotation: -10;
+	}
+	.bubble-3 {
+		top: 80%;
+		left: 10%;
+		width: 130px;
+		height: 65px;
+		animation-delay: 4s;
+		background-color: var(--accent-pink);
+		--random-rotation: 25;
+	}
+	.bubble-4 {
+		top: 25%;
+		left: 70%;
+		width: 90px;
+		height: 45px;
+		animation-delay: 6s;
+		background-color: var(--light-pink);
+		--random-rotation: -5;
+	}
+	.bubble-5 {
+		top: 70%;
+		left: 2%;
+		width: 125px;
+		height: 60px;
+		animation-delay: 8s;
+		background-color: var(--primary-pink);
+		--random-rotation: 20;
+	}
+	.bubble-6 {
+		top: 5%;
+		left: 30%;
+		width: 110px;
+		height: 55px;
+		animation-delay: 1s;
+		background-color: var(--dark-pink);
+		--random-rotation: -18;
+	}
+	.bubble-7 {
+		top: 90%;
+		left: 75%;
+		width: 140px;
+		height: 70px;
+		animation-delay: 3s;
+		background-color: var(--accent-pink);
+		--random-rotation: 10;
+	}
+	.bubble-8 {
+		top: 35%;
+		left: 1%;
+		width: 85px;
+		height: 40px;
+		animation-delay: 5s;
+		background-color: var(--light-pink);
+		--random-rotation: 30;
+	}
+	.bubble-9 {
+		top: 60%;
+		left: 92%;
+		width: 115px;
+		height: 58px;
+		animation-delay: 7s;
+		background-color: var(--primary-pink);
+		--random-rotation: -7;
+	}
+	.bubble-10 {
+		top: 18%;
+		left: 65%;
+		width: 120px;
+		height: 60px;
+		animation-delay: 9s;
+		background-color: var(--dark-pink);
+		--random-rotation: 22;
+	}
+
+    .spendr-logo {
+        display: block;
+        margin: 0 auto -30px auto;
+        max-width: 400px; 
+        height: auto;
+    }
+
     .login-container {
-        max-width: 400px;
-        margin: 50px auto;
-        padding: 20px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        background-color: #fff;
+        position: relative; 
+        z-index: 1;
+        width: 450px;
+        padding: 35px;
+        background-color: var(--text-white);
+        border: 1px solid var(--primary-pink);
+        border-radius: 12px;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        margin: auto; 
+        margin-top: 100px;
     }
 
     h1 {
         text-align: center;
-        color: #333;
+        color: var(--dark-pink);
+        margin-top: 15px; 
         margin-bottom: 20px;
+        font-size: 2em;
     }
 
     .form-group {
@@ -78,63 +283,78 @@
     label {
         display: block;
         margin-bottom: 5px;
-        font-weight: bold;
-        color: #555;
+        font-weight: 500;
+        color: var(--text-dark);
     }
 
     input[type="text"],
-    input[type="email"],
     input[type="password"] {
         width: 100%;
         padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        border-radius: 5px;
         box-sizing: border-box;
-        font-size: 16px;
+        font-size: 1em;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    input:focus {
+        border-color: var(--primary-pink);
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(var(--primary-pink), 0.2);
     }
 
     button {
+        margin-top: 20px;
         width: 100%;
-        padding: 10px;
-        background-color: #007bff;
-        color: white;
+        padding: 12px;
+        background-color: var(--primary-pink);
+        color: var(--text-white);
         border: none;
-        border-radius: 4px;
-        font-size: 18px;
+        border-radius: 25px;
+        font-size: 1.1em;
+        font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.3s ease;
+        transition: background-color 0.3s ease, transform 0.1s ease;
     }
 
     button:hover:enabled {
-        background-color: #0056b3;
+        background-color: var(--dark-pink);
+        transform: translateY(-1px);
     }
 
     button:disabled {
-        background-color: #cccccc;
+        background-color: var(--light-pink);
+        color: var(--text-light);
         cursor: not-allowed;
     }
 
     .error-message {
-        color: #dc3545;
+        color: var(--error-color);
         background-color: #f8d7da;
         border: 1px solid #f5c6cb;
         padding: 10px;
         border-radius: 4px;
         margin-bottom: 15px;
         text-align: center;
+        font-weight: 500;
     }
 
     p {
         text-align: center;
-        margin-top: 20px;
+        margin-top: 25px;
+        font-size: 0.95em;
+        color: var(--text-dark);
     }
 
     p a {
-        color: #007bff;
+        color: var(--dark-pink);
+        font-weight: 500;
         text-decoration: none;
     }
 
     p a:hover {
         text-decoration: underline;
+        color: var(--accent-pink);
     }
 </style>

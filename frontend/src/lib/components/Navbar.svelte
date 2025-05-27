@@ -2,6 +2,7 @@
     import { authStore } from '$lib/stores/auth';
     import { logoutUser } from '$lib/api/auth';
     import { page } from '$app/stores';
+
     $: isAuthenticated = $authStore.isAuthenticated;
     $: user = $authStore.user;
 
@@ -33,19 +34,22 @@
 
 <style>
     .navbar {
-        background-color: #333;
+        background-color: var(--primary-pink); 
         padding: 15px 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        color: white;
+        color: var(--text-white);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
     .navbar-brand a {
-        color: white;
+        color: var(--text-white);
         text-decoration: none;
-        font-size: 1.5em;
-        font-weight: bold;
+        font-size: 1.8em; 
+        font-weight: 700; 
+        letter-spacing: 1px; 
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
     }
 
     .navbar-links {
@@ -61,36 +65,40 @@
     }
 
     .navbar-links a {
-        color: white;
+        color: var(--text-white);
         text-decoration: none;
-        padding: 5px 10px;
-        border-radius: 4px;
-        transition: background-color 0.3s ease;
+        padding: 8px 12px;
+        border-radius: 20px;
+        transition: background-color 0.3s ease, color 0.3s ease;
+        font-weight: 500;
     }
 
     .navbar-links a:hover,
     .navbar-links a.active {
-        background-color: #555;
+        background-color: var(--dark-pink); 
+        color: var(--text-white);
     }
 
     .user-info {
         display: flex;
         align-items: center;
         gap: 10px;
-        color: white;
+        color: var(--text-white);
+        font-weight: 400;
     }
 
     .user-info button {
-        background-color: #dc3545;
-        color: white;
+        background-color: var(--accent-pink); 
+        color: var(--text-white);
         border: none;
-        padding: 8px 12px;
-        border-radius: 4px;
+        padding: 8px 15px;
+        border-radius: 20px; 
         cursor: pointer;
         transition: background-color 0.3s ease;
+        font-weight: 500;
     }
 
     .user-info button:hover {
-        background-color: #c82333;
+        background-color: var(--dark-pink);
     }
-</style>    
+</style>
