@@ -88,8 +88,62 @@ Notes
 - Include the JWT access token in the Authorization header for protected routes.  
 - Proper error handling is in place; invalid credentials or unauthorized access attempts return appropriate HTTP status codes.
 
+CRUD Operations API
+
+All CRUD endpoints require the Authorization header with a valid JWT access token:  
+Authorization: Bearer <access_token>
+
+Accounts  
+- List accounts  
+  Method: GET  
+  Endpoint: /api/accounts/  
+  Headers: Authorization  
+  Response:  
+  [  
+    { "id": 1, "name": "Main Wallet", "balance": "1000.00" },  
+    ...  
+  ]
+
+- Retrieve account  
+  Method: GET  
+  Endpoint: /api/accounts/{id}/  
+  Headers: Authorization  
+  Response:  
+  { "id": 1, "name": "Main Wallet", "balance": "1000.00" }
+
+- Create account  
+  Method: POST  
+  Endpoint: /api/accounts/  
+  Headers: Authorization, Content-Type: application/json  
+  Body:  
+  { "name": "New Wallet", "balance": "500.00" }  
+  Response:  
+  { "id": 2, "name": "New Wallet", "balance": "500.00" }
+
+- Update account  
+  Method: PUT / PATCH  
+  Endpoint: /api/accounts/{id}/  
+  Headers: Authorization, Content-Type: application/json  
+  Body:  
+  { "name": "Updated Wallet", "balance": "600.00" }  
+  Response: Updated account object
+
+- Delete account  
+  Method: DELETE  
+  Endpoint: /api/accounts/{id}/  
+  Headers: Authorization  
+  Response: HTTP 204 No Content
+
+Repeat same patterns for Categories (/api/categories/) and Transactions (/api/transactions/)
+
+Error handling  
+- 401 Unauthorized if no/invalid token  
+- 404 Not Found if resource does not exist  
+- 400 Bad Request for invalid input  
+
 License  
 This project is licensed under the MIT License.
 
 Contact  
 For questions, reach me at 202210280@gordoncollege.edu.ph
+
