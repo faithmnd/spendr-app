@@ -2,7 +2,7 @@
 
 Spendr is a personal wallet app backend built with Django and Django REST Framework. This repo contains the backend API with user authentication implemented via JWT tokens.
 
-Project Setup
+## Project Setup
 
 Prerequisites
 - Python 3.8+
@@ -28,7 +28,7 @@ Installation steps
 5. Run the server:
    python manage.py runserver
 
-User Authentication API
+## User Authentication API
 
 Register User  
 a. Method: POST  
@@ -88,7 +88,7 @@ Notes
 - Include the JWT access token in the Authorization header for protected routes.  
 - Proper error handling is in place; invalid credentials or unauthorized access attempts return appropriate HTTP status codes.
 
-CRUD Operations API
+## CRUD Operations API
 
 All CRUD endpoints require the Authorization header with a valid JWT access token:  
 Authorization: Bearer <access_token>
@@ -141,7 +141,7 @@ Error handling
 - 404 Not Found if resource does not exist  
 - 400 Bad Request for invalid input  
 
-Rate Limiting
+## Rate Limiting
 Test Rate-Limited Endpoint
 
 Method: GET
@@ -163,6 +163,56 @@ Sample Rate Limit Exceeded Response:
 }
 
 Status Code: 429 Too Many Requests
+
+## File Upload API
+All file upload endpoints require the Authorization header with a valid JWT access token:
+
+Authorization: Bearer <access_token>
+
+### Upload File (e.g., Receipt, Document)
+
+- Method: POST  
+- Endpoint: /api/upload/
+- Headers:  
+  - Authorization: Bearer <access_token> 
+  - Content-Type: multipart/form-data  
+
+- Request Body:  
+  - Use multipart/form-data to send a file field named file.  
+  - Example using `curl`:
+    curl -X POST https://spendr/api/upload/ \
+      -H "Authorization: Bearer <access_token>" \
+      -F "file=@/path/to/your/file.jpg"
+
+
+- Sample Success Response:
+  {
+    "id": 1,
+    "file_url": "https://spendr/media/uploads/file.jpg",
+    "uploaded_at": "2025-05-27T14:33:22Z"
+  }
+
+Notes:
+- Supported file types: images (jpg, png), PDFs, etc. (depends on your backend config)
+- Max file size enforced server-side (configurable)
+- Returns metadata about the uploaded file (ID, URL, timestamp)
+
+Retrieve Uploaded File Info
+Method: GET
+Endpoint: /api/upload/{id}/
+Headers: Authorization: Bearer <access_token>
+Response:
+{
+  "id": 1,
+  "file_url": "https://spendr/media/uploads/file.jpg",
+  "uploaded_at": "2025-05-27T14:33:22Z"
+}
+
+Delete Uploaded File
+Method: DELETE
+Endpoint: /api/upload/{id}/
+Headers: Authorization: Bearer <access_token>
+Response: HTTP 204 No Content on success
 
 License  
 This project is licensed under the MIT License.
