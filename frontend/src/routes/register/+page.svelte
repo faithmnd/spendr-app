@@ -1,6 +1,6 @@
 <script lang="ts">
     import { registerUser } from '$lib/api/auth';
-    import { goto } from '$app/navigation'; // For redirection
+    import { goto } from '$app/navigation'; 
 
     let username = '';
     let email = '';
@@ -10,9 +10,9 @@
     let successMessage: string | null = null;
     let isLoading = false;
 
-    async function handleSubmit() {
-        error = null; // Clear previous errors
-        successMessage = null; // Clear previous success messages
+    async function handleSubmit() { 
+        error = null;
+        successMessage = null;
         isLoading = true;
 
         if (password !== password2) {
@@ -24,33 +24,47 @@
         try {
             await registerUser({ username, email, password, password2 });
             successMessage = 'Registration successful! You can now log in.';
-            // Optionally, clear the form fields
             username = '';
             email = '';
             password = '';
             password2 = '';
 
-            // Redirect to login page after a short delay or directly
             setTimeout(() => {
-                goto('/login'); // Redirect to your login page
-            }, 2000); // Wait 2 seconds before redirecting
+                goto('/login'); 
+            }, 2000); 
 
-        } catch (err: any) {
+            } catch (err: unknown) { 
             console.error('Registration error:', err);
-            // Assuming the error object from auth.ts contains a 'message' or 'detail'
-            error = err.message || 'An unexpected error occurred during registration.';
-            // If it's a JSON string from backend, parse it to show better error.
-            try {
-                const parsedError = JSON.parse(error);
-                if (typeof parsedError === 'object') {
-                    // Flatten errors for display, e.g., { username: ['This field is required'], password: ['Too short'] }
-                    error = Object.entries(parsedError)
-                        .map(([key, value]) => `${key}: ${(value as string[]).join(', ')}`)
-                        .join('; ');
-                }
-            } catch (e) {
-                // If parsing fails, use the original error message
+
+            let errorMessageForDisplay: string;
+
+            if (err instanceof Error) {
+                errorMessageForDisplay = err.message;
+            } else if (typeof err === 'string') {
+                errorMessageForDisplay = err;
+            } else if (typeof err === 'object' && err !== null) {
+                errorMessageForDisplay = JSON.stringify(err);
+            } else {
+                errorMessageForDisplay = 'An unexpected error occurred during registration.';
             }
+
+            error = errorMessageForDisplay; 
+
+            try {
+                if (errorMessageForDisplay.startsWith('{') && errorMessageForDisplay.endsWith('}')) {
+                    const parsedError = JSON.parse(errorMessageForDisplay);
+                    if (typeof parsedError === 'object' && parsedError !== null) {
+                        error = Object.entries(parsedError)
+                            .map(([key, value]) => {
+                                return `${key}: ${(Array.isArray(value) ? value : [value]).join(', ')}`;
+                            })
+                            .join('; ');
+                    }
+                }
+            } catch (parseError) {
+                console.warn('Could not parse error message as JSON:', parseError);
+            }
+
         } finally {
             isLoading = false;
         }
@@ -136,7 +150,7 @@
         padding: 10px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        box-sizing: border-box; /* Ensures padding doesn't increase width */
+        box-sizing: border-box; 
         font-size: 16px;
     }
 

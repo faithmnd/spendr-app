@@ -1,7 +1,7 @@
 import { goto } from '$app/navigation';
 import { authStore } from '$lib/stores/auth';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:5173/api';
 /**
  * Registers a new user.
  * @param {object} userData 
@@ -29,7 +29,7 @@ export async function registerUser(userData: { username: string; email: string; 
 
         return data;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Registration failed:', error);
         throw error; 
     }
@@ -69,7 +69,7 @@ export async function loginUser(credentials: { username: string; password: strin
 
         return data;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Login failed:', error);
         throw error;
     }

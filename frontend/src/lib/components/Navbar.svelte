@@ -1,9 +1,7 @@
 <script lang="ts">
     import { authStore } from '$lib/stores/auth';
     import { logoutUser } from '$lib/api/auth';
-    import { page } from '$app/stores'; // To highlight active link
-
-    // Subscribe to the auth store
+    import { page } from '$app/stores';
     $: isAuthenticated = $authStore.isAuthenticated;
     $: user = $authStore.user;
 
