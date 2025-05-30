@@ -156,7 +156,7 @@ class DashboardSummaryView(APIView):
             transaction_type='expense',
             date__range=[start_of_month, end_of_month],
             category__isnull=False 
-        ).values(category_id=F('category__id'), category_name=F('category__name')).annotate(total_amount=Sum('amount')).order_by('-total_amount')
+        ).values(category_pk=F('category__id'), category_name=F('category__name')).annotate(total_amount=Sum('amount')).order_by('-total_amount')
 
         overall_budget_goal_obj = BudgetGoal.objects.filter(
             user=user,

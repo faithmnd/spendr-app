@@ -1,4 +1,3 @@
-
 import { goto } from '$app/navigation';
 import { authStore } from '$lib/stores/auth';
 import type { User } from '$lib/types/user'; 

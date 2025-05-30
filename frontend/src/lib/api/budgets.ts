@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '$lib/config'; 
+import { API_BASE_URL } from '$lib/config';
 import { getAuthHeaders } from './auth';
 
 export interface Wallet {
@@ -10,6 +10,9 @@ export interface Wallet {
     user: number;
     created_at: string;
     updated_at: string;
+    // Added for Accounts page:
+    type: 'Cash' | 'Bank' | 'eWallet' | 'Credit Card' | 'Other'; // Type of account
+    icon?: string; // Optional icon for the account type (e.g., emoji)
 }
 
 export interface Category {
@@ -20,6 +23,11 @@ export interface Category {
     user: number;
     created_at: string;
     updated_at: string;
+    // Added for Categories page:
+    icon?: string; // Optional icon/emoji for the category
+    monthly_budget?: number; // Optional budget for the category (e.g., for current month)
+    budget_progress?: number; // Optional progress percentage against the budget
+    is_default?: boolean; // Optional: indicates if this is a default category for quick-adding
 }
 
 export interface Transaction {
@@ -27,12 +35,12 @@ export interface Transaction {
     amount: number;
     transaction_type: 'income' | 'expense';
     description: string | null;
-    date: string; 
-    wallet: number; 
-    wallet_name: string; 
+    date: string;
+    wallet: number;
+    wallet_name: string;
     category: number | null;
     category_name: string | null;
-    category_type: string | null; 
+    category_type: string | null;
     user: number;
     created_at: string;
     updated_at: string;
@@ -42,7 +50,7 @@ export interface BudgetGoal {
     id: number;
     month: number;
     year: number;
-    category: number | null; 
+    category: number | null;
     category_name: string | null;
     amount: number;
     description: string | null;
@@ -72,7 +80,7 @@ export interface SpendingByCategory {
 }
 
 export interface MonthlyTrendData {
-    month: string; 
+    month: string;
     income: number;
     expense: number;
 }
@@ -89,7 +97,7 @@ export interface DashboardSummary {
     current_month_num: number;
     current_year: number;
     overall_budget_goal: number;
-    overall_budget_progress: number; 
+    overall_budget_progress: number;
     budget_goals_progress: {
         goal_id: number;
         category_name: string;
@@ -115,7 +123,7 @@ async function fetchData(url: string, options?: RequestInit) {
         headers: {
             ...headers,
             ...options?.headers,
-            'Content-Type': 'application/json' 
+            'Content-Type': 'application/json'
         }
     });
 
@@ -140,7 +148,7 @@ export async function createWallet(walletData: Partial<Wallet>): Promise<Wallet>
 
 export async function updateWallet(id: number, walletData: Partial<Wallet>): Promise<Wallet> {
     return fetchData(`wallets/${id}/`, {
-        method: 'PUT',
+        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
         body: JSON.stringify(walletData)
     });
 }
@@ -164,7 +172,7 @@ export async function createCategory(categoryData: Partial<Category>): Promise<C
 
 export async function updateCategory(id: number, categoryData: Partial<Category>): Promise<Category> {
     return fetchData(`categories/${id}/`, {
-        method: 'PUT',
+        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
         body: JSON.stringify(categoryData)
     });
 }
@@ -189,7 +197,7 @@ export async function createTransaction(transactionData: Partial<Transaction>): 
 
 export async function updateTransaction(id: number, transactionData: Partial<Transaction>): Promise<Transaction> {
     return fetchData(`transactions/${id}/`, {
-        method: 'PUT',
+        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
         body: JSON.stringify(transactionData)
     });
 }
@@ -213,7 +221,7 @@ export async function createBudgetGoal(goalData: Partial<BudgetGoal>): Promise<B
 
 export async function updateBudgetGoal(id: number, goalData: Partial<BudgetGoal>): Promise<BudgetGoal> {
     return fetchData(`budget-goals/${id}/`, {
-        method: 'PUT',
+        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
         body: JSON.stringify(goalData)
     });
 }
@@ -237,7 +245,7 @@ export async function createRecurringBill(billData: Partial<RecurringBill>): Pro
 
 export async function updateRecurringBill(id: number, billData: Partial<RecurringBill>): Promise<RecurringBill> {
     return fetchData(`recurring-bills/${id}/`, {
-        method: 'PUT',
+        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
         body: JSON.stringify(billData)
     });
 }
@@ -254,4 +262,38 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
 export async function getMonthlySummary(): Promise<MonthlyTrendData[]> {
     return fetchData('monthly-summary/');
+}
+
+/**
+ * Transfers funds between two wallets (accounts).
+ * @param {number} fromWalletId - The ID of the source wallet.
+ * @param {number} toWalletId - The ID of the destination wallet.
+ * @param {number} amount - The amount to transfer.
+ * @param {string} description - Description of the transfer.
+ * @returns {Promise<any>} - Response from the transfer API.
+ */
+export async function transferFunds(fromWalletId: number, toWalletId: number, amount: number, description: string): Promise<any> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/budget/transfers/`, { // Assuming a /transfers/ endpoint under /api/budget/
+            method: 'POST',
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({
+                from_wallet: fromWalletId,
+                to_wallet: toWalletId,
+                amount: amount,
+                description: description,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+            throw new Error(errorData.detail || JSON.stringify(errorData));
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error transferring funds:', error);
+        throw error;
+    }
 }
