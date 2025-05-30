@@ -4,6 +4,9 @@ from datetime import date, timedelta
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+from decimal import Decimal
+from django.db.models import F
 
 class BaseModel(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='%(class)ss')
@@ -16,12 +19,27 @@ class BaseModel(models.Model):
 
 class Wallet(BaseModel):
     name = models.CharField(max_length=100)
-    balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    balance = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
     currency = models.CharField(max_length=3, default='PHP')
     description = models.TextField(blank=True, null=True)
 
+    def clean(self):
+        # Skip balance validation during save if balance is an F() expression
+        if not isinstance(self.balance, F):
+            if self.balance < 0:
+                raise ValidationError({'balance': 'Balance cannot be negative.'})
+        
+        valid_currencies = ['PHP', 'USD', 'EUR', 'GBP', 'JPY']  # Add more as needed
+        if self.currency not in valid_currencies:
+            raise ValidationError({'currency': f'Invalid currency. Must be one of: {", ".join(valid_currencies)}'})
+
+    def save(self, *args, **kwargs):
+        if not isinstance(self.balance, F):  # Only validate if not using F() expression
+            self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.name} ({self.currency} {self.balance})"
+        return f"{self.name} ({self.balance} {self.currency})"
 
 class Category(BaseModel):
     name = models.CharField(max_length=100)
@@ -31,14 +49,27 @@ class Category(BaseModel):
         default='expense'
     )
     description = models.TextField(blank=True, null=True)
-    # ADD THIS LINE: monthly_budget field
-    monthly_budget = models.DecimalField(max_digits=15, decimal_places=2, default=0.00,
-                                        help_text="Monthly budget goal for this category (for expense categories)")
-
+    monthly_budget = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text="Monthly budget goal for this category (for expense categories)"
+    )
 
     class Meta:
         verbose_name_plural = "Categories"
         unique_together = ('user', 'name', 'type')
+
+    def clean(self):
+        if self.monthly_budget < 0:
+            raise ValidationError({'monthly_budget': 'Monthly budget cannot be negative.'})
+        
+        if self.type == 'income' and self.monthly_budget > 0:
+            raise ValidationError({'monthly_budget': 'Income categories cannot have a budget.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.get_type_display()})"
@@ -58,6 +89,22 @@ class Transaction(BaseModel):
 
     class Meta:
         ordering = ['-date', '-created_at']
+
+    def clean(self):
+        if self.amount <= 0:
+            raise ValidationError({'amount': 'Amount must be positive.'})
+
+        if self.date > date.today():
+            raise ValidationError({'date': 'Transaction date cannot be in the future.'})
+
+        if self.category and self.category.type != self.transaction_type:
+            raise ValidationError({
+                'category': f"Category type ('{self.category.type}') must match transaction type ('{self.transaction_type}')."
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         sign = '+' if self.transaction_type == 'income' else '-'
@@ -104,9 +151,6 @@ def update_wallet_on_transaction_delete(sender, instance, **kwargs):
 class BudgetGoal(BaseModel):
     month = models.PositiveSmallIntegerField(help_text="Month (1-12)")
     year = models.PositiveSmallIntegerField(help_text="Year (e.g., 2024)")
-    # Note: While you have monthly_budget on Category, this BudgetGoal model
-    # can be used for *overriding* a category's monthly budget for a specific month/year,
-    # or for an overall monthly budget if category is null.
     category = models.ForeignKey(
         Category,
         on_delete=models.CASCADE,
@@ -121,6 +165,23 @@ class BudgetGoal(BaseModel):
     class Meta:
         unique_together = ('user', 'month', 'year', 'category')
         ordering = ['-year', '-month', 'category__name']
+
+    def clean(self):
+        if not (1 <= self.month <= 12):
+            raise ValidationError({'month': 'Month must be between 1 and 12.'})
+        
+        if not (2000 <= self.year <= 2100):
+            raise ValidationError({'year': 'Year must be between 2000 and 2100.'})
+        
+        if self.amount <= 0:
+            raise ValidationError({'amount': 'Budget amount must be positive.'})
+        
+        if self.category and self.category.type != 'expense':
+            raise ValidationError({'category': 'Budget goals can only be set for expense categories.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         category_name = self.category.name if self.category else "Overall Monthly Budget"

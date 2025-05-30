@@ -28,4 +28,6 @@ urlpatterns = [
 
     path('dashboard-summary/', DashboardSummaryView.as_view(), name='dashboard-summary'),
     path('monthly-summary/', MonthlySummaryView.as_view(), name='monthly-summary'),
+    
+    path('transfer-funds/', TransferFundsView.as_view(), name='transfer-funds'),
 ]

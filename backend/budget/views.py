@@ -4,6 +4,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Sum, F, Q # Import Q for complex queries
+from django.db import transaction
 from .models import Wallet, Category, Transaction, BudgetGoal, RecurringBill
 from .serializers import (
     WalletSerializer, CategorySerializer, TransactionSerializer,
@@ -13,6 +14,7 @@ from datetime import date, timedelta
 from django.utils import timezone
 from django.db.models.functions import TruncMonth
 from calendar import monthrange # Import monthrange for end_of_month calculations
+from decimal import Decimal
 
 class IsOwner(permissions.BasePermission):
     """
@@ -203,68 +205,83 @@ class RecurringBillDetailView(generics.RetrieveUpdateDestroyAPIView):
 class TransferFundsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        user = request.user
         from_wallet_id = request.data.get('from_wallet')
         to_wallet_id = request.data.get('to_wallet')
-        amount = request.data.get('amount')
-        description = request.data.get('description', 'Funds Transfer')
+        amount = Decimal(str(request.data.get('amount', '0')))
+        description = request.data.get('description', '')
 
+        # Validate input
         if not all([from_wallet_id, to_wallet_id, amount]):
-            return Response({"detail": "Missing required fields: from_wallet, to_wallet, amount."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': 'Missing required fields: from_wallet, to_wallet, amount'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if amount <= 0:
+            return Response({
+                'error': 'Amount must be positive'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if from_wallet_id == to_wallet_id:
+            return Response({
+                'error': 'Cannot transfer to the same wallet'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            amount = float(amount)
-            if amount <= 0:
-                return Response({"detail": "Amount must be positive."}, status=status.HTTP_400_BAD_REQUEST)
-        except ValueError:
-            return Response({"detail": "Invalid amount."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if str(from_wallet_id) == str(to_wallet_id): # Compare as strings to avoid type issues
-            return Response({"detail": "Cannot transfer funds to the same wallet."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            from_wallet = Wallet.objects.get(id=from_wallet_id, user=user)
-            to_wallet = Wallet.objects.get(id=to_wallet_id, user=user)
+            from_wallet = Wallet.objects.select_for_update().get(
+                id=from_wallet_id,
+                user=request.user
+            )
+            to_wallet = Wallet.objects.select_for_update().get(
+                id=to_wallet_id,
+                user=request.user
+            )
         except Wallet.DoesNotExist:
-            return Response({"detail": "One or both wallets not found or do not belong to the user."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({
+                'error': 'One or both wallets not found'
+            }, status=status.HTTP_404_NOT_FOUND)
 
+        # Check sufficient funds
         if from_wallet.balance < amount:
-            return Response({"detail": "Insufficient funds in source wallet."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'error': 'Insufficient funds'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Perform the transfer
-        # Use F() expressions for atomic updates to prevent race conditions
-        from_wallet.balance = F('balance') - amount
-        to_wallet.balance = F('balance') + amount
-        from_wallet.save(update_fields=['balance'])
-        to_wallet.save(update_fields=['balance'])
-        # Refresh from DB after atomic update if you need current balance immediately
-        from_wallet.refresh_from_db()
-        to_wallet.refresh_from_db()
-
+        # Update wallet balances
+        from_wallet_balance = from_wallet.balance - amount
+        to_wallet_balance = to_wallet.balance + amount
 
         # Create two transactions for audit trail
         Transaction.objects.create(
-            user=user,
+            user=request.user,
             wallet=from_wallet,
             amount=amount,
-            transaction_type='expense', # Outflow from source wallet
+            transaction_type='expense',
             description=f"Transfer to {to_wallet.name}: {description}",
-            date=timezone.localdate() # Use localdate for consistency
+            date=timezone.localdate()
         )
         Transaction.objects.create(
-            user=user,
+            user=request.user,
             wallet=to_wallet,
             amount=amount,
-            transaction_type='income', # Inflow to destination wallet
+            transaction_type='income',
             description=f"Transfer from {from_wallet.name}: {description}",
             date=timezone.localdate()
         )
 
-        return Response({"message": "Funds transferred successfully!",
-                         "from_wallet_new_balance": float(from_wallet.balance),
-                         "to_wallet_new_balance": float(to_wallet.balance)},
-                        status=status.HTTP_200_OK)
+        # Update wallet balances
+        from_wallet.balance = from_wallet_balance
+        from_wallet.save()
+
+        to_wallet.balance = to_wallet_balance
+        to_wallet.save()
+
+        return Response({
+            "message": "Funds transferred successfully!",
+            "from_wallet_new_balance": float(from_wallet.balance),
+            "to_wallet_new_balance": float(to_wallet.balance)
+        }, status=status.HTTP_200_OK)
 
 
 class DashboardSummaryView(APIView):
