@@ -6,13 +6,13 @@
 
     const dispatch = createEventDispatcher();
 
-    export const categories: Category[] = []; 
-    export let currentMonth: number = new Date().getMonth() + 1; 
+    export let categories: Category[] = [];
+    export let currentMonth: number = new Date().getMonth() + 1;
     export let currentYear: number = new Date().getFullYear();
 
     let month = currentMonth;
     let year = currentYear;
-    let categoryId: number | null = null; 
+    let categoryId: number | null = null;
     let amount = 0;
     let description = '';
 
@@ -20,7 +20,7 @@
     let error: string | null = null;
 
     const months = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, name: new Date(2000, i, 1).toLocaleString('default', { month: 'long' }) }));
-    const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i); 
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
     async function handleSubmit() {
         error = null;
@@ -29,8 +29,8 @@
             const goalData = {
                 month,
                 year,
-                category: categoryId, 
-                amount: parseFloat(amount.toString()), 
+                category: categoryId,
+                amount: parseFloat(amount.toString()),
                 description: description || null
             };
             const newGoal = await createBudgetGoal(goalData);
@@ -48,7 +48,7 @@
     }
 
     function handleBackdropKeydown(event: KeyboardEvent) {
-        if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') {
+        if (event.key === 'Escape') { // Only close on Escape key for modals
             handleClose();
         }
     }
@@ -58,7 +58,8 @@
     class="modal-backdrop"
     on:click|self={handleClose}
     on:keydown={handleBackdropKeydown}
-    role="button" tabindex="0" aria-label="Close modal" >
+    role="button" tabindex="-1" aria-label="Close modal"
+>
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <h2 id="modal-title">Set New Budget Goal</h2>
         <form on:submit|preventDefault={handleSubmit}>
@@ -107,88 +108,144 @@
             {/if}
 
             <div class="modal-actions">
-                <button type="submit" disabled={isLoading}>Set Goal</button>
+                <button type="submit" class="submit-button" disabled={isLoading}>Set Goal</button>
                 <button type="button" on:click={handleClose} disabled={isLoading} class="cancel-button">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 <style>
+    /* CSS Variables (assuming they are in a global file like app.css or layout.svelte) */
+    :root {
+        --primary-pink: #FF69B4; /* Hot Pink */
+        --dark-pink: #C71585;    /* Medium Violet Red */
+        --accent-pink: #FF1493;  /* Deep Pink */
+        --light-pink: #FFC0CB;   /* Light Pink */
+        --text-white: #FFFFFF;
+        --text-dark: #333333;
+        --text-medium: #555555;
+        --border-light: #F0F0F0;
+        --shadow-light: rgba(0, 0, 0, 0.08);
+        --shadow-medium: rgba(0, 0, 0, 0.12);
+        --success-bg: #d4edda;
+        --success-text: #155724;
+        --error-bg: #f8d7da;
+        --error-text: #dc3545;
+        --warning-bg: #fff3cd;
+        --warning-text: #856404;
+        --info-bg: #e0f2f7; /* Light blue for header */
+        --info-text: #0056b3;
+    }
+
     .modal-backdrop {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: rgba(0, 0, 0, 0.6); /* Slightly darker backdrop */
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 1000;
     }
     .modal-content {
-        background-color: white;
+        background-color: var(--text-white); /* White content background */
         padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        border-radius: 15px; /* More rounded corners */
+        box-shadow: 0 8px 20px var(--shadow-medium); /* Deeper shadow */
         width: 90%;
         max-width: 500px;
-        max-height: 90vh; 
-        overflow-y: auto; 
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: fadeIn 0.3s ease-out forwards; /* Fade in animation */
     }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
     .modal-content h2 {
         margin-top: 0;
-        margin-bottom: 20px;
-        color: #333;
+        margin-bottom: 25px; /* More margin below title */
+        color: var(--dark-pink); /* Dark pink title */
         text-align: center;
+        font-size: 2em; /* Larger title */
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
     }
     .form-group {
-        margin-bottom: 15px;
+        margin-bottom: 20px; /* More space between form groups */
     }
     .form-group label {
         display: block;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
         font-weight: bold;
-        color: #555;
+        color: var(--text-dark); /* Darker text for labels */
     }
-    .form-group input, .form-group textarea, .form-group select {
-        width: calc(100% - 22px);
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: calc(100% - 20px); /* Adjust width for padding */
+        padding: 12px; /* More padding */
+        border: 2px solid var(--light-pink); /* Light pink border */
+        border-radius: 10px; /* More rounded inputs */
         font-size: 1em;
         box-sizing: border-box;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary-pink); /* Primary pink on focus */
+        box-shadow: 0 0 0 3px rgba(255, 105, 180, 0.2); /* Subtle pink glow */
     }
     .modal-actions {
         display: flex;
         justify-content: flex-end;
-        gap: 10px;
-        margin-top: 20px;
+        gap: 15px; /* More space between buttons */
+        margin-top: 30px; /* More margin above buttons */
     }
     .modal-actions button {
-        padding: 10px 20px;
-        border-radius: 5px;
+        padding: 12px 25px; /* Larger buttons */
+        border-radius: 25px; /* Pill shape */
         border: none;
         cursor: pointer;
         font-size: 1em;
-        transition: background-color 0.2s ease;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Button shadow */
     }
-    .modal-actions button[type="submit"] {
-        background-color: #007bff;
-        color: white;
+    .submit-button {
+        background-color: var(--primary-pink); /* Primary pink submit button */
+        color: var(--text-white);
     }
-    .modal-actions button[type="submit"]:hover:not(:disabled) {
-        background-color: #0056b3;
+    .submit-button:hover:not(:disabled) {
+        background-color: var(--dark-pink); /* Darker pink on hover */
+        transform: translateY(-3px); /* Lift effect */
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2); /* Stronger shadow on hover */
     }
-    .modal-actions button.cancel-button {
-        background-color: #6c757d;
-        color: white;
+    .cancel-button {
+        background-color: var(--light-pink); /* Light pink cancel button */
+        color: var(--text-dark); /* Dark text for contrast */
     }
-    .modal-actions button.cancel-button:hover:not(:disabled) {
-        background-color: #5a6268;
+    .cancel-button:hover:not(:disabled) {
+        background-color: var(--primary-pink); /* Primary pink on hover */
+        color: var(--text-white); /* White text on hover */
+        transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
     }
     .modal-actions button:disabled {
-        background-color: #cccccc;
+        opacity: 0.6; /* More subtle disabled state */
         cursor: not-allowed;
+        transform: none !important; /* Prevent hover transform when disabled */
+        box-shadow: none; /* No shadow when disabled */
     }
 </style>

@@ -1,5 +1,57 @@
-import { API_BASE_URL } from '$lib/config';
-import { getAuthHeaders } from './auth';
+import { goto } from '$app/navigation';
+import { authStore } from '$lib/stores/auth';
+
+// Default to localhost if environment variable is not set
+const API_BASE_URL = 'http://127.0.0.1:8000';
+
+// Helper function for API requests
+async function fetchData(url: string, options: RequestInit = {}) {
+    const accessToken = localStorage.getItem('accessToken');
+
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+        ...options.headers
+    };
+
+    const config: RequestInit = {
+        ...options,
+        headers
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/budget/${url}`, config);
+
+        if (response.status === 401) {
+            authStore.logout();
+            await goto('/login', { replaceState: true });
+            throw new Error('Authentication required');
+        }
+
+        if (!response.ok) {
+            let errorMessage = 'API Error';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+            } catch {
+                errorMessage = response.statusText || `HTTP ${response.status}`;
+            }
+            throw new Error(`API Error: ${response.status} - ${errorMessage}`);
+        }
+
+        if (response.status === 204) {
+            return null;
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error(`API Error for ${url}:`, error);
+        if (error instanceof Error && (error.message.includes('Authentication required') || error.message.includes('navigation'))) {
+            throw error;
+        }
+        throw new Error(`Failed to fetch data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
 
 export interface Wallet {
     id: number;
@@ -10,37 +62,34 @@ export interface Wallet {
     user: number;
     created_at: string;
     updated_at: string;
-    // Added for Accounts page:
-    type: 'Cash' | 'Bank' | 'eWallet' | 'Credit Card' | 'Other'; // Type of account
-    icon?: string; // Optional icon for the account type (e.g., emoji)
+    type: 'Cash' | 'Bank' | 'eWallet' | 'Credit Card' | 'Other';
+    icon?: string;
 }
 
 export interface Category {
     id: number;
     name: string;
     type: 'income' | 'expense';
-    description: string | null;
+    description?: string;
     user: number;
     created_at: string;
     updated_at: string;
-    // Added for Categories page:
-    icon?: string; // Optional icon/emoji for the category
-    monthly_budget?: number; // Optional budget for the category (e.g., for current month)
-    budget_progress?: number; // Optional progress percentage against the budget
-    is_default?: boolean; // Optional: indicates if this is a default category for quick-adding
+    icon?: string;
+    is_default?: boolean;
+    // This should be a derived value from transactions, not set directly
+    actual_expense?: number;
+    // This is the correct field for the budget goal for the category
+    monthly_budget?: number;
 }
 
 export interface Transaction {
     id: number;
     amount: number;
     transaction_type: 'income' | 'expense';
-    description: string | null;
     date: string;
-    wallet: number;
-    wallet_name: string;
-    category: number | null;
-    category_name: string | null;
-    category_type: string | null;
+    category: number; // category ID
+    description?: string;
+    wallet: number; // wallet ID
     user: number;
     created_at: string;
     updated_at: string;
@@ -51,9 +100,8 @@ export interface BudgetGoal {
     month: number;
     year: number;
     category: number | null;
-    category_name: string | null;
     amount: number;
-    description: string | null;
+    description?: string;
     user: number;
     created_at: string;
     updated_at: string;
@@ -116,24 +164,6 @@ export interface DashboardSummary {
     alerts: string[];
 }
 
-async function fetchData(url: string, options?: RequestInit) {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/api/budget/${url}`, {
-        ...options,
-        headers: {
-            ...headers,
-            ...options?.headers,
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-        const errorMessage = errorData.detail || JSON.stringify(errorData);
-        throw new Error(`API Error: ${response.status} - ${errorMessage}`);
-    }
-    return response.json();
-}
 
 export async function getWallets(): Promise<Wallet[]> {
     return fetchData('wallets/');
@@ -148,7 +178,7 @@ export async function createWallet(walletData: Partial<Wallet>): Promise<Wallet>
 
 export async function updateWallet(id: number, walletData: Partial<Wallet>): Promise<Wallet> {
     return fetchData(`wallets/${id}/`, {
-        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
+        method: 'PUT',
         body: JSON.stringify(walletData)
     });
 }
@@ -170,10 +200,18 @@ export async function createCategory(categoryData: Partial<Category>): Promise<C
     });
 }
 
-export async function updateCategory(id: number, categoryData: Partial<Category>): Promise<Category> {
-    return fetchData(`categories/${id}/`, {
-        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
-        body: JSON.stringify(categoryData)
+export async function updateCategory(categoryId: number, data: {
+    name?: string;
+    type?: 'income' | 'expense';
+    description?: string | null;
+    icon?: string;
+    is_default?: boolean;
+    // CHANGED: Use monthly_budget for the budget goal
+    monthly_budget?: number;
+}): Promise<Category> {
+    return fetchData(`categories/${categoryId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
     });
 }
 
@@ -197,7 +235,7 @@ export async function createTransaction(transactionData: Partial<Transaction>): 
 
 export async function updateTransaction(id: number, transactionData: Partial<Transaction>): Promise<Transaction> {
     return fetchData(`transactions/${id}/`, {
-        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
+        method: 'PUT',
         body: JSON.stringify(transactionData)
     });
 }
@@ -221,7 +259,7 @@ export async function createBudgetGoal(goalData: Partial<BudgetGoal>): Promise<B
 
 export async function updateBudgetGoal(id: number, goalData: Partial<BudgetGoal>): Promise<BudgetGoal> {
     return fetchData(`budget-goals/${id}/`, {
-        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
+        method: 'PUT',
         body: JSON.stringify(goalData)
     });
 }
@@ -245,7 +283,7 @@ export async function createRecurringBill(billData: Partial<RecurringBill>): Pro
 
 export async function updateRecurringBill(id: number, billData: Partial<RecurringBill>): Promise<RecurringBill> {
     return fetchData(`recurring-bills/${id}/`, {
-        method: 'PUT', // Use PUT for full replacement, PATCH for partial update
+        method: 'PUT',
         body: JSON.stringify(billData)
     });
 }
@@ -264,36 +302,37 @@ export async function getMonthlySummary(): Promise<MonthlyTrendData[]> {
     return fetchData('monthly-summary/');
 }
 
-/**
- * Transfers funds between two wallets (accounts).
- * @param {number} fromWalletId - The ID of the source wallet.
- * @param {number} toWalletId - The ID of the destination wallet.
- * @param {number} amount - The amount to transfer.
- * @param {string} description - Description of the transfer.
- * @returns {Promise<any>} - Response from the transfer API.
- */
 export async function transferFunds(fromWalletId: number, toWalletId: number, amount: number, description: string): Promise<any> {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/budget/transfers/`, { // Assuming a /transfers/ endpoint under /api/budget/
-            method: 'POST',
-            headers: await getAuthHeaders(),
-            body: JSON.stringify({
-                from_wallet: fromWalletId,
-                to_wallet: toWalletId,
-                amount: amount,
-                description: description,
-            }),
-        });
+    return fetchData('transfers/', {
+        method: 'POST',
+        body: JSON.stringify({
+            from_wallet: fromWalletId,
+            to_wallet: toWalletId,
+            amount: amount,
+            description: description,
+        }),
+    });
+}
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-            throw new Error(errorData.detail || JSON.stringify(errorData));
-        }
+// You might not need this if you primarily use monthly_budget on Category
+// or if your backend handles creating/updating BudgetGoal records automatically.
+export async function createOrUpdateBudgetGoal(data: {
+    category_id: number | null;
+    amount: number;
+    month?: number;
+    year?: number;
+}): Promise<BudgetGoal> {
+    const today = new Date();
+    const month = data.month || today.getMonth() + 1;
+    const year = data.year || today.getFullYear();
 
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error transferring funds:', error);
-        throw error;
-    }
+    return fetchData('budget-goals/', {
+        method: 'POST', // Or a dedicated PUT/PATCH for existing goals
+        body: JSON.stringify({
+            category: data.category_id,
+            amount: data.amount,
+            month,
+            year
+        })
+    });
 }

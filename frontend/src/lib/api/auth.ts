@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import { authStore } from '$lib/stores/auth';
-import type { User } from '$lib/types/user'; 
+import type { User } from '$lib/types/user';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 const API_BASE_URL = PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
@@ -82,7 +82,16 @@ export async function loginUser(credentials: { username: string; password: strin
             localStorage.setItem('accessToken', access);
             localStorage.setItem('refreshToken', refresh);
             authStore.login(access);
-            await goto('/dashboard');
+
+            // Wrap navigation in a try-catch to handle dynamic import failures
+            try {
+                await goto('/dashboard', { replaceState: true });
+            } catch (navError) {
+                console.error('Navigation error:', navError);
+                // If navigation fails, try a full page reload
+                window.location.href = '/dashboard';
+            }
+
             return data;
         } else {
             throw new Error('Authentication tokens not received.');
