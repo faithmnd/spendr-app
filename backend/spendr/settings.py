@@ -31,7 +31,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -46,13 +45,15 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'dj_rest_auth',
+    'dj_rest_auth.registration',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'rest_framework_simplejwt',
 
     'spendr',
-    'users', # This is correctly added to resolve the previous ImproperlyConfigured error
+    'users',
+    'budget',
 ]
 
 SITE_ID = 1
@@ -92,9 +93,12 @@ AUTHENTICATION_BACKENDS = (
     'allauth.account.auth_backends.AuthenticationBackend',
 )
 
-AUTH_USER_MODEL = 'users.User'
-ACCOUNT_LOGIN_METHODS = ['email', 'username']
+ACCOUNT_LOGIN_METHODS = ['username', 'email']
 ACCOUNT_SIGNUP_FIELDS = ['email', 'username']
+AUTH_USER_MODEL = 'users.User'
+
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = True
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
 

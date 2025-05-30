@@ -12,11 +12,11 @@ class AccountSerializer(serializers.ModelSerializer):
             'id', 'user', 'name', 'current_balance', 'account_type',
             'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['current_balance', 'created_at', 'updated_at'] # These are system-managed
+        read_only_fields = ['current_balance', 'created_at', 'updated_at'] 
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    user = serializers.ReadOnlyField(source='user.username') # Display username as read-only
+    user = serializers.ReadOnlyField(source='user.username')
 
     class Meta:
         model = Category
@@ -28,7 +28,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    user = serializers.ReadOnlyField(source='user.username') # Display username as read-only
+    user = serializers.ReadOnlyField(source='user.username') 
 
     account_name = serializers.CharField(source='account.name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
@@ -40,7 +40,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             'amount', 'type', 'description', 'transaction_date',
             'related_transaction', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at'] # System-managed fields
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class BudgetSerializer(serializers.ModelSerializer):

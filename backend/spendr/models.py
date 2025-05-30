@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError 
 from django.db.models.signals import post_save, post_delete 
 from django.dispatch import receiver 
-from django.db.models import Sum 
+from django.db.models import Sum
 
 
 class Account(models.Model):
@@ -58,7 +58,7 @@ class Category(models.Model):
 
 
 class Transaction(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='transactions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='spendr_transactions')
     account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='transactions')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     amount = models.DecimalField(max_digits=10, decimal_places=2) 

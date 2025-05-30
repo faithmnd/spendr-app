@@ -1,0 +1,1 @@
+declare module 'svelte-chartjs-2';

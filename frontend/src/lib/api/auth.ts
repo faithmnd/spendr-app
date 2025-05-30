@@ -1,19 +1,15 @@
+
 import { goto } from '$app/navigation';
 import { authStore } from '$lib/stores/auth';
-const API_BASE_URL = import.meta.env.VITE_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+import type { User } from '$lib/types/user'; 
+import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
-/**
- * Registers a new user.
- * @param {object} userData
- * @param {string} userData.username
- * @param {string} userData.email
- * @param {string} userData.password 
- * @param {string} userData.passwordConfirm 
- * @returns {Promise<object>}
- */
+const API_BASE_URL = PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+
+
 export async function registerUser(userData: { username: string; email: string; password: string; passwordConfirm: string }) {
     try {
-        const response = await fetch(`${API_BASE_URL}/auth/registration/`, {
+        const response = await fetch(`${API_BASE_URL}/api/auth/registration/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -43,26 +39,19 @@ export async function registerUser(userData: { username: string; email: string; 
                     })
                     .join('; ');
             }
-            throw new Error(errorMessage); 
+            throw new Error(errorMessage);
         }
 
         return data;
     } catch (error: unknown) {
         console.error('Registration failed in auth.ts:', error);
-        throw error; 
+        throw error;
     }
 }
 
-/**
- * Logs in a user.
- * @param {object} credentials
- * @param {string} credentials.username
- * @param {string} credentials.password
- * @returns {Promise<object>}
- */
 export async function loginUser(credentials: { username: string; password: string }) {
     try {
-        const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -105,14 +94,11 @@ export async function loginUser(credentials: { username: string; password: strin
     }
 }
 
-/**
- * Logs out the user.
- */
 export async function logoutUser() {
     try {
         const accessToken = localStorage.getItem('accessToken');
         if (accessToken) {
-            await fetch(`${API_BASE_URL}/auth/logout/`, {
+            await fetch(`${API_BASE_URL}/api/auth/logout/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -130,11 +116,7 @@ export async function logoutUser() {
     }
 }
 
-/**
- * Fetches the current authenticated user's details.
- * @returns {Promise<object | null>}
- */
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<User | null> {
     const accessToken = localStorage.getItem('accessToken');
     if (!accessToken) {
         authStore.logout();
@@ -142,12 +124,11 @@ export async function getCurrentUser() {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/user/`, {
-            method: 'GET',
+        const response = await fetch(`${API_BASE_URL}/api/auth/user/`, {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`,
-            },
+                'Authorization': `Bearer ${accessToken}`
+            }
         });
 
         if (response.status === 401) {
@@ -162,10 +143,10 @@ export async function getCurrentUser() {
         }
 
         if (!response.ok) {
-            throw new Error('Failed to fetch user data');
+            throw new Error(`API Error: ${response.status} - ${response.statusText || 'Unknown error'}`);
         }
 
-        const data = await response.json();
+        const data: User = await response.json();
         authStore.setUser(data);
         return data;
     } catch (error) {
@@ -175,10 +156,6 @@ export async function getCurrentUser() {
     }
 }
 
-/**
- * Refreshes the access token using the refresh token.
- * @returns {Promise<boolean>} - True if refresh was successful, false otherwise.
- */
 async function refreshAccessToken(): Promise<boolean> {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) {
@@ -186,7 +163,7 @@ async function refreshAccessToken(): Promise<boolean> {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
+        const response = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -215,7 +192,7 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 export function getAuthHeaders(): HeadersInit {
-    let headers: HeadersInit = {
+    const headers: HeadersInit = {
         'Content-Type': 'application/json',
     };
     const token = localStorage.getItem('accessToken');

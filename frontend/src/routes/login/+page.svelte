@@ -2,6 +2,7 @@
     import { loginUser } from '$lib/api/auth';
     import ErrorMessage from '$lib/components/ErrorMessage.svelte';
     import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+    import { goto } from '$app/navigation';
 
     let username = '';
     let password = '';
@@ -327,17 +328,6 @@
         background-color: var(--light-pink);
         color: var(--text-light);
         cursor: not-allowed;
-    }
-
-    .error-message {
-        color: var(--error-color);
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 15px;
-        text-align: center;
-        font-weight: 500;
     }
 
     p {
